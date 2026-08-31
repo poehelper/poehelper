@@ -18,9 +18,9 @@
   },
   "unique": {
     "ambiguous": 19,
-    "resolved": 777,
-    "sourceLabels": 1539,
-    "templates": 932,
+    "resolved": 779,
+    "sourceLabels": 1541,
+    "templates": 934,
     "unresolved": 136
   }
 });
@@ -2859,6 +2859,26 @@
       {
         "id": "explicit.stat_332217711",
         "text": "#% increased Maximum Life per socketed Grand Spectrum",
+        "type": "explicit"
+      }
+    ],
+    "status": "resolved"
+  },
+  "#% increased spirit per socketed grand spectrum": {
+    "candidates": [
+      {
+        "id": "explicit.stat_1430165758",
+        "text": "#% increased Spirit per socketed Grand Spectrum",
+        "type": "explicit"
+      }
+    ],
+    "status": "resolved"
+  },
+  "#% to all elemental resistances per socketed grand spectrum": {
+    "candidates": [
+      {
+        "id": "explicit.stat_242161915",
+        "text": "+#% to all Elemental Resistances per socketed Grand Spectrum",
         "type": "explicit"
       }
     ],

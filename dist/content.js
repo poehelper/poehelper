@@ -398,39 +398,66 @@
   var GENERIC_ITEM_FALLBACK_ICON = extensionAssetUrl(FALLBACK_PATH);
   function getSafeItemImageUrl(source) {
     const value = String(source || "").trim();
-    return /^assets\/item-icons\/[a-f0-9-]+\.webp$/i.test(value) ? extensionAssetUrl(value) : GENERIC_ITEM_FALLBACK_ICON;
+    if (/^assets\/item-icons\/[a-f0-9-]+\.webp$/i.test(value)) {
+      return extensionAssetUrl(value);
+    }
+    if (/^https:\/\/web\.poecdn\.com\/gen\/image\/[A-Za-z0-9_-]+\/[a-f0-9]+\/[A-Za-z0-9._-]+$/i.test(value)) {
+      return value;
+    }
+    return GENERIC_ITEM_FALLBACK_ICON;
   }
 
   // src/content/presets/base-menu.ts
-  function createBaseMenu(preset, definitions, selectBase) {
+  function createBaseMenu(preset, definitions, selectBase, {
+    selectUnique,
+    uniqueDefinitions = []
+  } = {}) {
     const singular = preset.replace(/s$/, "");
     const menu = document.createElement("div");
     menu.className = `poe-trade-styler-${singular}-base-menu`;
     menu.hidden = true;
     menu.setAttribute("role", "radiogroup");
     menu.setAttribute("aria-label", `${singular} base`);
-    if (preset === "flasks") {
-      ["Life Flasks", "Mana Flasks"].forEach((text) => {
+    function appendHeadings(labels, fullWidth = false) {
+      labels.forEach((text) => {
         const heading = document.createElement("div");
-        heading.className = "poe-trade-styler-flask-column-heading";
+        heading.className = "poe-trade-styler-base-column-heading";
+        heading.classList.toggle("is-full-width", fullWidth);
         heading.textContent = text;
         menu.append(heading);
       });
     }
-    definitions.forEach((definition) => {
+    function appendPlaceholder() {
+      const placeholder = document.createElement("span");
+      placeholder.className = "poe-trade-styler-base-option-placeholder";
+      placeholder.setAttribute("aria-hidden", "true");
+      menu.append(placeholder);
+    }
+    function appendOption(definition, isUnique = false) {
+      const baseDefinition = definition;
       const option = document.createElement("button");
       option.className = `poe-trade-styler-base-option poe-trade-styler-${singular}-base-option`;
+      option.classList.toggle("is-unique", isUnique);
       option.type = "button";
-      option.dataset.poeTradeStylerBaseKey = definition.key;
+      if (isUnique) {
+        option.dataset.poeTradeStylerUniqueKey = definition.key;
+      } else {
+        option.dataset.poeTradeStylerBaseKey = definition.key;
+      }
       option.dataset.poeTradeStylerBasePreset = preset;
-      const detail = definition.baseStat || (definition.requiredLevel ? `Requires Level ${definition.requiredLevel}` : "");
+      const detail = isUnique ? [
+        definition.base,
+        definition.requiredLevel ? `Requires Level ${definition.requiredLevel}` : ""
+      ].filter(Boolean).join(" \xB7 ") : baseDefinition.baseStat || (definition.requiredLevel ? `Requires Level ${definition.requiredLevel}` : "");
       option.title = detail ? `${definition.displayName} \u2014 ${detail}` : definition.displayName;
-      option.setAttribute("role", "radio");
       option.setAttribute(
         "aria-label",
         detail ? `${definition.displayName}. ${detail}` : definition.displayName
       );
-      option.setAttribute("aria-checked", "false");
+      if (!isUnique) {
+        option.setAttribute("role", "radio");
+        option.setAttribute("aria-checked", "false");
+      }
       const icon = document.createElement("img");
       icon.src = getSafeItemImageUrl(definition.icon);
       icon.referrerPolicy = "no-referrer";
@@ -438,12 +465,19 @@
       icon.setAttribute("aria-hidden", "true");
       const label = document.createElement("span");
       label.className = "poe-trade-styler-base-option-label";
-      label.textContent = definition.displayName;
-      if (definition.baseStat) {
-        label.dataset.poeTradeStylerBaseStat = definition.baseStat;
+      if (isUnique) {
+        const name = document.createElement("span");
+        name.className = "poe-trade-styler-unique-option-name";
+        name.textContent = preset === "charms" ? `${definition.displayName} ${definition.base}` : definition.displayName;
+        label.append(name);
+      } else {
+        label.textContent = definition.displayName;
+      }
+      if (!isUnique && baseDefinition.baseStat) {
+        label.dataset.poeTradeStylerBaseStat = baseDefinition.baseStat;
       }
       option.append(icon, label);
-      if (definition.requiredLevel) {
+      if ((preset === "flasks" || isUnique) && definition.requiredLevel) {
         const level = document.createElement("span");
         level.className = "poe-trade-styler-flask-base-level";
         level.textContent = String(definition.requiredLevel);
@@ -452,10 +486,92 @@
       option.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
-        void selectBase(definition.key);
+        if (isUnique && selectUnique) {
+          void selectUnique(definition.searchText);
+        } else {
+          void selectBase(definition.key);
+        }
       });
       menu.append(option);
-    });
+    }
+    function appendPairedRows(left, right, isUnique = false) {
+      const rowCount = Math.max(left.length, right.length);
+      for (let index = 0; index < rowCount; index += 1) {
+        if (left[index]) appendOption(left[index], isUnique);
+        else appendPlaceholder();
+        if (right[index]) appendOption(right[index], isUnique);
+        else appendPlaceholder();
+      }
+    }
+    if (preset === "flasks") {
+      appendHeadings(["Life Flasks", "Mana Flasks"]);
+      appendPairedRows(
+        definitions.filter((definition) => definition.kind === "life"),
+        definitions.filter((definition) => definition.kind === "mana")
+      );
+      appendPairedRows(
+        uniqueDefinitions.filter((definition) => definition.kind === "life"),
+        uniqueDefinitions.filter((definition) => definition.kind === "mana"),
+        true
+      );
+    } else if (preset === "charms" && uniqueDefinitions.length > 0) {
+      appendHeadings(["Charm Bases", "Unique Charms"]);
+      const remainingUniques = [...uniqueDefinitions];
+      const alignedUniques = definitions.map((definition) => {
+        const matchIndex = remainingUniques.findIndex(
+          (unique) => unique.base === (definition.searchText || definition.displayName)
+        );
+        return matchIndex >= 0 ? remainingUniques.splice(matchIndex, 1)[0] : null;
+      });
+      definitions.forEach((definition, index) => {
+        appendOption(definition);
+        const unique = alignedUniques[index];
+        if (unique) appendOption(unique, true);
+        else appendPlaceholder();
+      });
+      remainingUniques.forEach((unique) => {
+        appendPlaceholder();
+        appendOption(unique, true);
+      });
+    } else if (preset === "tablets" && uniqueDefinitions.length > 0) {
+      appendHeadings(["Tablet Bases", "Unique Tablets"]);
+      const remainingUniques = [...uniqueDefinitions];
+      const matchingUniques = (definition) => {
+        const baseName = definition.searchText || definition.displayName;
+        return uniqueDefinitions.filter((unique) => unique.base === baseName);
+      };
+      const pairedDefinitions = definitions.filter(
+        (definition) => matchingUniques(definition).length === 1
+      );
+      const unpairedDefinitions = definitions.filter(
+        (definition) => matchingUniques(definition).length !== 1
+      );
+      pairedDefinitions.forEach((definition) => {
+        const unique = matchingUniques(definition)[0];
+        remainingUniques.splice(remainingUniques.indexOf(unique), 1);
+        appendOption(definition);
+        appendOption(unique, true);
+      });
+      const unpairedRowCount = Math.max(
+        unpairedDefinitions.length,
+        remainingUniques.length
+      );
+      for (let index = 0; index < unpairedRowCount; index += 1) {
+        if (unpairedDefinitions[index]) appendOption(unpairedDefinitions[index]);
+        else appendPlaceholder();
+        if (remainingUniques[index]) appendOption(remainingUniques[index], true);
+        else appendPlaceholder();
+      }
+    } else if (preset === "jewels" && uniqueDefinitions.length > 0) {
+      appendHeadings(["Jewel Bases"], true);
+      definitions.forEach((definition) => appendOption(definition));
+      if (definitions.length % 2 !== 0) appendPlaceholder();
+      appendHeadings(["Unique Jewels"], true);
+      uniqueDefinitions.forEach((definition) => appendOption(definition, true));
+      if (uniqueDefinitions.length % 2 !== 0) appendPlaceholder();
+    } else {
+      definitions.forEach((definition) => appendOption(definition));
+    }
     return menu;
   }
 
@@ -652,6 +768,7 @@
     stats,
     styler,
     tabletData,
+    uniqueData,
     waystoneData,
     nativeForm: injectedNativeForm
   }) {
@@ -663,6 +780,7 @@
     let charmBaseSelectionInProgress = false;
     let flaskBaseSelectionInProgress = false;
     let tabletBaseSelectionInProgress = false;
+    let uniqueItemSelectionInProgress = false;
     let uniqueGroupPolicyActive = false;
     let preparedGroupMode = null;
     function getActiveGroupPolicyMode() {
@@ -744,7 +862,7 @@
     }
     function syncBaseMenu(preset, selectedKey) {
       document.querySelectorAll(
-        `.poe-trade-styler-base-option[data-poe-trade-styler-base-preset="${preset}"]`
+        `.poe-trade-styler-base-option[data-poe-trade-styler-base-preset="${preset}"][data-poe-trade-styler-base-key]`
       ).forEach((option) => {
         const selected = option.dataset.poeTradeStylerBaseKey === selectedKey;
         option.classList.toggle("is-selected", selected);
@@ -865,11 +983,16 @@
         option.className = `poe-trade-styler-waystone-tier-option is-${definition.color}`;
         option.type = "button";
         option.dataset.poeTradeStylerWaystoneTier = String(definition.tier);
-        option.textContent = definition.roman;
         option.title = definition.searchText;
         option.setAttribute("role", "radio");
         option.setAttribute("aria-label", definition.searchText);
         option.setAttribute("aria-checked", "false");
+        const icon = document.createElement("img");
+        icon.className = "poe-trade-styler-waystone-tier-icon";
+        icon.src = getSafeItemImageUrl(definition.icon);
+        icon.alt = "";
+        icon.setAttribute("aria-hidden", "true");
+        option.append(icon);
         option.addEventListener("click", (event) => {
           event.preventDefault();
           event.stopPropagation();
@@ -969,6 +1092,18 @@
         flaskBaseSelectionInProgress = false;
       }
     }
+    async function selectUniqueItem(searchText) {
+      if (!searchText || uniqueItemSelectionInProgress) return false;
+      uniqueItemSelectionInProgress = true;
+      try {
+        closeWaystoneTierMenus();
+        ["tablets", "charms", "flasks"].forEach(closeBaseMenus);
+        if (!await preparePresetActivation("uniques")) return false;
+        return searchUniqueItem(searchText);
+      } finally {
+        uniqueItemSelectionInProgress = false;
+      }
+    }
     const selectGem = createGemSelection({
       activate: async () => {
         await setActivePreset("gems");
@@ -1048,12 +1183,42 @@
       });
       return button;
     }
-    const createTabletBaseMenu = () => createBaseMenu("tablets", tabletData.TABLET_BASES, selectTabletBase);
-    const createCharmBaseMenu = () => createBaseMenu("charms", charmData.CHARM_BASES, selectCharmBase);
+    function getUniqueMenuDefinitions(type) {
+      return (uniqueData?.getItemsByType(type) || []).map((item) => ({
+        base: item.base,
+        displayName: item.name,
+        icon: item.officialIcon,
+        key: item.key,
+        kind: type === "Life Flasks" ? "life" : type === "Mana Flasks" ? "mana" : void 0,
+        requiredLevel: item.level,
+        searchText: `${item.name} ${item.base}`
+      }));
+    }
+    const createTabletBaseMenu = () => createBaseMenu("tablets", tabletData.TABLET_BASES, selectTabletBase, {
+      selectUnique: async (searchText) => {
+        await selectUniqueItem(searchText);
+      },
+      uniqueDefinitions: getUniqueMenuDefinitions("Tablets")
+    });
+    const createCharmBaseMenu = () => createBaseMenu("charms", charmData.CHARM_BASES, selectCharmBase, {
+      selectUnique: async (searchText) => {
+        await selectUniqueItem(searchText);
+      },
+      uniqueDefinitions: getUniqueMenuDefinitions("Charms")
+    });
     const createFlaskBaseMenu = () => createBaseMenu(
       "flasks",
       flaskData.FLASK_BASES,
-      selectFlaskBase
+      selectFlaskBase,
+      {
+        selectUnique: async (searchText) => {
+          await selectUniqueItem(searchText);
+        },
+        uniqueDefinitions: [
+          ...getUniqueMenuDefinitions("Life Flasks"),
+          ...getUniqueMenuDefinitions("Mana Flasks")
+        ]
+      }
     );
     const createTabletPresetButton = () => createBasePresetButton("tablets", "Tablet", tabletData.TABLET_GENERAL_ICON);
     const createCharmPresetButton = () => createBasePresetButton("charms", "Charm", charmData.CHARM_GENERAL_ICON);
@@ -1203,15 +1368,22 @@
       stats.filterForPreset();
       syncPresetControls();
     }
+    async function activateUniqueGroups() {
+      if (preparedGroupMode !== "uniques" && !await preparePresetActivation("uniques")) return;
+      preparedGroupMode = null;
+      uniqueGroupPolicyActive = true;
+      await applyWaystoneGroupState();
+      stats.filterForPreset();
+      stats.decorateOptions();
+    }
+    async function searchUniqueItem(name) {
+      await activateUniqueGroups();
+      if (!uniqueGroupPolicyActive) return false;
+      if (!await nativeForm.setSearchItem(name)) return false;
+      return finalizeSearch();
+    }
     return {
-      async activateUniqueGroups() {
-        if (preparedGroupMode !== "uniques" && !await preparePresetActivation("uniques")) return;
-        preparedGroupMode = null;
-        uniqueGroupPolicyActive = true;
-        await applyWaystoneGroupState();
-        stats.filterForPreset();
-        stats.decorateOptions();
-      },
+      activateUniqueGroups,
       closeMenus() {
         const closedWaystones = closeWaystoneTierMenus();
         const closedTablets = closeBaseMenus("tablets");
@@ -1230,9 +1402,11 @@
       finalizeSearch,
       isUniqueActive: () => uniqueGroupPolicyActive,
       prepareUniqueGroups: () => preparePresetActivation("uniques"),
+      searchUniqueItem,
       selectGear,
       selectGem,
-      selectJewel
+      selectJewel,
+      selectUniqueItem
     };
   }
 
@@ -1270,29 +1444,6 @@
       "Any Non-Unique"
     ]
   };
-  var QUICK_EMPTY_MODIFIER_FILTERS = [
-    {
-      key: "empty-prefixes",
-      label: "# Empty Prefix Modifiers",
-      shortLabel: "Prefixes",
-      statId: "pseudo.pseudo_number_of_empty_prefix_mods",
-      values: ["1", "2", "3", "4", "5", "6"]
-    },
-    {
-      key: "empty-suffixes",
-      label: "# Empty Suffix Modifiers",
-      shortLabel: "Suffixes",
-      statId: "pseudo.pseudo_number_of_empty_suffix_mods",
-      values: ["1", "2", "3", "4", "5", "6"]
-    },
-    {
-      key: "empty-modifiers",
-      label: "# Empty Modifiers",
-      shortLabel: "Empty modifiers",
-      statId: "pseudo.pseudo_number_of_empty_affix_mods",
-      values: ["1", "2", "3", "4", "5", "6"]
-    }
-  ];
   var QUICK_BOOLEAN_FILTERS = [
     {
       key: "corrupted",
@@ -1363,240 +1514,6 @@
       gemOnly: true
     }
   ];
-
-  // src/content/quick-empty-modifier-filter.ts
-  function createQuickEmptyModifierFeature({
-    actions,
-    closePopovers,
-    normalizeText,
-    requestSync
-  }) {
-    function getGroupToggle(group) {
-      return group?.querySelector(
-        ":scope > .filter-group-header .toggle-btn"
-      ) ?? null;
-    }
-    function isGroupEnabled(group) {
-      const toggle = getGroupToggle(group);
-      return Boolean(group && (!toggle || !toggle.classList.contains("off")));
-    }
-    function findStatRow(group, definition) {
-      if (!group) return null;
-      const target = normalizeText(definition.label);
-      const rows = group.querySelectorAll(
-        ".filter.full-span, .fixture-selected-stat, .filter-group-body > .filter:not(.filter-select-mutate)"
-      );
-      return [...rows].find((row) => {
-        const label = row.querySelector(".filter-title")?.textContent || row.textContent;
-        return normalizeText(label) === target;
-      }) ?? null;
-    }
-    function isStatRowEnabled(row) {
-      return Boolean(
-        row && !row.querySelector(":scope .toggle-btn")?.classList.contains("off")
-      );
-    }
-    function readValue(group, definition) {
-      if (!isGroupEnabled(group)) return "";
-      const row = findStatRow(group, definition);
-      if (!isStatRowEnabled(row)) return "";
-      const value = row?.querySelector('input[placeholder="min"]')?.value.trim() || "";
-      return definition.values.includes(value) ? value : "";
-    }
-    async function ensureAndGroup() {
-      if (!actions) return null;
-      let group = actions.findStatGroupByType("and");
-      if (!group) group = await actions.createStatGroup("and");
-      if (!group) return null;
-      const toggle = getGroupToggle(group);
-      if (toggle?.classList.contains("off")) {
-        toggle.click();
-        group = await actions.waitForElement(() => {
-          const candidate = actions.findStatGroupByType("and");
-          return isGroupEnabled(candidate) ? candidate : null;
-        }, 20) || group;
-      }
-      if (!isGroupEnabled(group)) return null;
-      if (!group.classList.contains("expanded")) {
-        group.querySelector(
-          ":scope > .filter-group-header .filter-title-clickable, :scope > .filter-group-header .filter-title"
-        )?.click();
-        group = await actions.waitForElement(() => {
-          const candidate = actions.findStatGroupByType("and");
-          return candidate?.classList.contains("expanded") ? candidate : null;
-        }, 20) || group;
-      }
-      return group;
-    }
-    function setRowEnabled(row, enabled) {
-      const toggle = row.querySelector(":scope .toggle-btn");
-      if (toggle && toggle.classList.contains("off") === enabled) toggle.click();
-    }
-    async function applyValue(definition, value) {
-      if (!actions) return false;
-      let group = actions.findStatGroupByType("and");
-      let row = findStatRow(group, definition);
-      if (!value) {
-        if (!row) return true;
-        setRowEnabled(row, false);
-        return true;
-      }
-      group = await ensureAndGroup();
-      if (!group) return false;
-      row = findStatRow(group, definition);
-      if (!row) {
-        const activated = await actions.activateModifierStatFilter(group, {
-          id: definition.statId,
-          label: definition.label,
-          type: "pseudo"
-        });
-        if (!activated) return false;
-        row = await actions.waitForElement(
-          () => findStatRow(actions.findStatGroupByType("and"), definition),
-          20
-        );
-      }
-      if (!row) return false;
-      setRowEnabled(row, true);
-      const input = row.querySelector('input[placeholder="min"]');
-      if (!input) return false;
-      input.focus();
-      input.value = value;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-      input.blur();
-      return true;
-    }
-    function setControlState(control) {
-      const group = actions?.findStatGroupByType("and") || null;
-      const values = QUICK_EMPTY_MODIFIER_FILTERS.map(
-        (definition) => readValue(group, definition)
-      );
-      const trigger = control.querySelector(
-        ".poe-trade-styler-quick-empty-trigger"
-      );
-      const activeCount = values.filter(Boolean).length;
-      control.dataset.value = values.join(",");
-      control.classList.toggle("is-enabled", activeCount > 0);
-      trigger?.classList.toggle("is-empty", activeCount === 0);
-      trigger?.classList.toggle("is-enabled", activeCount > 0);
-      QUICK_EMPTY_MODIFIER_FILTERS.forEach((definition, index) => {
-        control.querySelectorAll(
-          `[data-empty-modifier-filter="${definition.key}"] .poe-trade-styler-quick-empty-option`
-        ).forEach((option) => {
-          const selected = option.dataset.value === values[index];
-          option.classList.toggle("is-selected", selected);
-          option.setAttribute("aria-pressed", String(selected));
-        });
-      });
-      const summary = QUICK_EMPTY_MODIFIER_FILTERS.map(
-        (definition, index) => values[index] ? `${definition.shortLabel} ${values[index]}` : ""
-      ).filter(Boolean).join(", ");
-      if (trigger) {
-        trigger.title = summary ? `Empty modifier filters: ${summary}. Click to disable all.` : "Empty modifier filters: disabled. Hover to choose.";
-        trigger.setAttribute(
-          "aria-label",
-          summary ? `Empty modifier filters: ${summary}` : "Empty modifier filters: disabled"
-        );
-      }
-    }
-    function createControl() {
-      const control = document.createElement("div");
-      control.className = "poe-trade-styler-quick-empty-filter";
-      control.dataset.quickFilter = "empty-modifiers";
-      const trigger = document.createElement("button");
-      trigger.type = "button";
-      trigger.className = "poe-trade-styler-quick-filter poe-trade-styler-quick-empty-trigger is-empty";
-      trigger.setAttribute("aria-haspopup", "dialog");
-      trigger.setAttribute("aria-expanded", "false");
-      const label = document.createElement("span");
-      label.className = "poe-trade-styler-quick-empty-icon";
-      label.textContent = "Mods";
-      label.setAttribute("aria-hidden", "true");
-      trigger.append(label);
-      const popover = document.createElement("div");
-      popover.className = "poe-trade-styler-quick-empty-popover";
-      popover.hidden = true;
-      popover.setAttribute("role", "dialog");
-      popover.setAttribute("aria-label", "Empty modifier filters");
-      const close = () => {
-        popover.hidden = true;
-        control.classList.remove("is-open");
-        trigger.setAttribute("aria-expanded", "false");
-      };
-      const open = () => {
-        closePopovers(control);
-        popover.hidden = false;
-        control.classList.add("is-open");
-        trigger.setAttribute("aria-expanded", "true");
-      };
-      QUICK_EMPTY_MODIFIER_FILTERS.forEach((definition) => {
-        const row = document.createElement("div");
-        row.className = "poe-trade-styler-quick-empty-row";
-        row.dataset.emptyModifierFilter = definition.key;
-        const label2 = document.createElement("strong");
-        label2.className = "poe-trade-styler-quick-empty-label";
-        label2.textContent = definition.shortLabel;
-        const options = document.createElement("div");
-        options.className = "poe-trade-styler-quick-empty-options";
-        definition.values.forEach((value) => {
-          const option = document.createElement("button");
-          option.type = "button";
-          option.className = "poe-trade-styler-quick-empty-option";
-          option.dataset.value = value;
-          option.textContent = value;
-          option.setAttribute("aria-pressed", "false");
-          option.title = `${definition.shortLabel}: ${value}`;
-          option.addEventListener("click", async (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            const nextValue = option.classList.contains("is-selected") ? "" : value;
-            if (await applyValue(definition, nextValue)) {
-              setControlState(control);
-              requestSync();
-              setTimeout(requestSync, 80);
-            }
-          });
-          options.append(option);
-        });
-        row.append(label2, options);
-        popover.append(row);
-      });
-      control.addEventListener("pointerenter", open);
-      control.addEventListener("pointerleave", close);
-      control.addEventListener("focusin", open);
-      control.addEventListener("focusout", (event) => {
-        if (!control.contains(event.relatedTarget)) close();
-      });
-      trigger.addEventListener("click", async (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        if (!control.classList.contains("is-enabled")) {
-          close();
-          return;
-        }
-        await Promise.all(
-          QUICK_EMPTY_MODIFIER_FILTERS.map(
-            (definition) => applyValue(definition, "")
-          )
-        );
-        setControlState(control);
-        requestSync();
-        setTimeout(requestSync, 80);
-        close();
-      });
-      trigger.addEventListener("keydown", (event) => {
-        if (event.key !== "ArrowDown") return;
-        event.preventDefault();
-        open();
-        popover.querySelector("button")?.focus({ preventScroll: true });
-      });
-      control.append(trigger, popover);
-      setControlState(control);
-      return control;
-    }
-    return { createControl, syncControl: setControlState };
-  }
 
   // src/content/quick-rarity-filter.ts
   function createQuickRarityFilterFeature(dependencies) {
@@ -1877,10 +1794,36 @@
     trigger?.setAttribute("aria-expanded", "false");
   }
 
+  // src/content/hover-number-input.ts
+  function createHoverNumberInputController() {
+    let hoveredInput = null;
+    return {
+      enable(input) {
+        input.addEventListener("pointerenter", () => {
+          hoveredInput = input;
+        });
+        input.addEventListener("pointerleave", () => {
+          if (hoveredInput === input) hoveredInput = null;
+        });
+      },
+      handleKeyDown(event) {
+        const input = hoveredInput;
+        const isDigit = event.key.length === 1 && event.key >= "0" && event.key <= "9";
+        if (!input || !input.isConnected || input.disabled || input.readOnly || input === input.ownerDocument.activeElement || event.isComposing || event.altKey || event.ctrlKey || event.metaKey || !isDigit && event.key !== "Backspace") {
+          return false;
+        }
+        input.value = isDigit ? `${input.value}${event.key}` : input.value.slice(0, -1);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        event.preventDefault();
+        event.stopPropagation();
+        return true;
+      }
+    };
+  }
+
   // src/content/quick-filters.ts
   function createQuickFiltersFeature({
     gemData,
-    statGroups,
     styler,
     normalizeText,
     waitForElement
@@ -1889,6 +1832,7 @@
     const QUICK_BOUND_FILTERS = styler.QUICK_BOUND_FILTERS;
     let quickFilterSyncScheduled = false;
     let quickFilterGroupToggleInProgress = false;
+    const hoverNumberInput = createHoverNumberInputController();
     const pendingQuickFilterGroupEnables = /* @__PURE__ */ new Map();
     function getQuickFilterBody(label) {
       return getFilterBodyByLabel(label, normalizeStatFilterText);
@@ -2191,6 +2135,7 @@
         input.max = String(definition.max);
         input.placeholder = `${definition.min}\u2013${definition.max}`;
         input.setAttribute("aria-label", definition.shortLabel);
+        hoverNumberInput.enable(input);
         input.addEventListener("input", () => {
           if (isValidInputValue(input.value)) {
             void commitValue(input.value, false, input);
@@ -2313,17 +2258,17 @@
     function closeQuickBoundPopovers(exceptControl = null) {
       let closed = false;
       document.querySelectorAll(
-        ".poe-trade-styler-quick-number-filter.is-open, .poe-trade-styler-quick-bound-filter.is-open, .poe-trade-styler-quick-rarity-filter.is-open, .poe-trade-styler-quick-empty-filter.is-open"
+        ".poe-trade-styler-quick-number-filter.is-open, .poe-trade-styler-quick-bound-filter.is-open, .poe-trade-styler-quick-rarity-filter.is-open"
       ).forEach((control) => {
         if (control === exceptControl) {
           return;
         }
         control.classList.remove("is-open");
         const popover = control.querySelector(
-          ".poe-trade-styler-quick-number-popover, .poe-trade-styler-quick-bound-popover, .poe-trade-styler-quick-rarity-popover, .poe-trade-styler-quick-empty-popover"
+          ".poe-trade-styler-quick-number-popover, .poe-trade-styler-quick-bound-popover, .poe-trade-styler-quick-rarity-popover"
         );
         const trigger = control.querySelector(
-          ".poe-trade-styler-quick-number-trigger, .poe-trade-styler-quick-bound-trigger, .poe-trade-styler-quick-rarity-trigger, .poe-trade-styler-quick-empty-trigger"
+          ".poe-trade-styler-quick-number-trigger, .poe-trade-styler-quick-bound-trigger, .poe-trade-styler-quick-rarity-trigger"
         );
         if (popover) popover.hidden = true;
         trigger?.setAttribute("aria-expanded", "false");
@@ -2376,6 +2321,7 @@
         input.max = String(definition.max);
       }
       input.placeholder = definition.bound;
+      hoverNumberInput.enable(input);
       const commitValue = async (value, closePopover = false) => {
         const normalizedValue = styler.normalizeQuickBoundValue(
           definition,
@@ -2461,12 +2407,6 @@
       requestSync: requestQuickFilterSync,
       waitForElement
     });
-    const emptyModifierFilter = createQuickEmptyModifierFeature({
-      actions: statGroups,
-      closePopovers: closeQuickBoundPopovers,
-      normalizeText: normalizeStatFilterText,
-      requestSync: requestQuickFilterSync
-    });
     function syncQuickFilters() {
       const strip = document.querySelector(
         "#trade > .top .poe-trade-styler-quick-filters"
@@ -2478,12 +2418,6 @@
         '[data-quick-filter="rarity"]'
       );
       if (rarityControl) rarityFilter.syncControl(rarityControl);
-      const emptyModifierControl = strip.querySelector(
-        '[data-quick-filter="empty-modifiers"]'
-      );
-      if (emptyModifierControl) {
-        emptyModifierFilter.syncControl(emptyModifierControl);
-      }
       QUICK_BOOLEAN_FILTERS.forEach((definition) => {
         const control = strip.querySelector(
           `[data-quick-filter="${definition.key}"]`
@@ -2552,7 +2486,6 @@
       QUICK_BOUND_FILTERS.forEach(
         (definition) => strip.append(createQuickBoundControl(definition))
       );
-      strip.append(emptyModifierFilter.createControl());
       QUICK_BOOLEAN_FILTERS.forEach(
         (definition) => strip.append(createQuickBooleanControl(definition))
       );
@@ -2566,6 +2499,7 @@
     return {
       closeBoundPopovers: closeQuickBoundPopovers,
       decorate: decorateQuickFilters,
+      handleKeyDown: hoverNumberInput.handleKeyDown,
       isGroupToggleInProgress: () => quickFilterGroupToggleInProgress,
       requestSync: requestQuickFilterSync
     };
@@ -6039,8 +5973,10 @@
     jewelData,
     onDeactivate = async () => void 0,
     onSelect,
+    onSelectUnique = async () => false,
     presetState,
-    styler
+    styler,
+    uniqueData
   }) {
     let launcher = null;
     let menu = null;
@@ -6063,9 +5999,27 @@
       setOpen(menu.hidden);
     }
     function createMenu() {
-      return createBaseMenu("jewels", jewelData.JEWEL_BASES, async (baseKey) => {
-        if (await onSelect(baseKey)) close();
-      });
+      const uniqueDefinitions = (uniqueData?.getItemsByType("Jewels") || []).map((item) => ({
+        base: item.base,
+        displayName: item.name,
+        icon: item.officialIcon,
+        key: item.key,
+        requiredLevel: item.level,
+        searchText: `${item.name} ${item.base}`
+      }));
+      return createBaseMenu(
+        "jewels",
+        jewelData.JEWEL_BASES,
+        async (baseKey) => {
+          if (await onSelect(baseKey)) close();
+        },
+        {
+          selectUnique: async (name) => {
+            if (await onSelectUnique(name)) close();
+          },
+          uniqueDefinitions
+        }
+      );
     }
     function createLauncher() {
       const button = doc.createElement("button");
@@ -6351,7 +6305,6 @@
     const quickFilters = createQuickFiltersFeature({
       gemData,
       normalizeText: stats.normalizeText,
-      statGroups: stats,
       styler,
       waitForElement: stats.waitForElement
     });
@@ -6371,6 +6324,7 @@
       stats,
       styler,
       tabletData,
+      uniqueData,
       waystoneData
     });
     isUniquePresetActive = presets.isUniqueActive;
@@ -6389,8 +6343,10 @@
       jewelData,
       onDeactivate: presets.deactivate,
       onSelect: presets.selectJewel,
+      onSelectUnique: presets.selectUniqueItem,
       presetState,
-      styler
+      styler,
+      uniqueData
     });
     const gearHelper = createGearHelperFeature({
       document: doc,
@@ -6408,11 +6364,7 @@
       onBeforeOpen: async () => {
         return presets.prepareUniqueGroups();
       },
-      onSearchItem: async (name) => {
-        await presets.activateUniqueGroups();
-        if (!await nativeForm.setSearchItem(name)) return false;
-        return presets.finalizeSearch();
-      },
+      onSearchItem: presets.searchUniqueItem,
       persistSettings: settingsFeature.persist,
       settings,
       styler,
@@ -6467,6 +6419,7 @@
       }
     };
     const onDocumentKeyDown = (event) => {
+      if (quickFilters.handleKeyDown(event)) return;
       if (event.key === "Escape" && uniqueHelper.close()) return;
       if (event.key === "Escape" && gearHelper.close()) return;
       if (event.key === "Escape" && gemHelper.close()) return;
@@ -6503,7 +6456,7 @@
         deactivatePresetForSearchChange();
       }
       const target = asElement(event.target);
-      if (!quickFilters.isGroupToggleInProgress() && !target?.closest(".poe-trade-styler-quick-rarity-filter") && !target?.closest(".poe-trade-styler-quick-number-filter") && !target?.closest(".poe-trade-styler-quick-bound-filter") && !target?.closest(".poe-trade-styler-quick-empty-filter")) {
+      if (!quickFilters.isGroupToggleInProgress() && !target?.closest(".poe-trade-styler-quick-rarity-filter") && !target?.closest(".poe-trade-styler-quick-number-filter") && !target?.closest(".poe-trade-styler-quick-bound-filter")) {
         quickFilters.closeBoundPopovers();
       }
       quickFilters.requestSync();

@@ -10,6 +10,7 @@
     "test": "npm --prefix ../TradeStylerWork run test:extension",
     "build": "esbuild src/content/index.ts --bundle --format=iife --platform=browser --target=es2022 --outfile=dist/content.js",
     "build:watch": "npm run build -- --watch",
+    "package:extension": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-extension.ps1",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

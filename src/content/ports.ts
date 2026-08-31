@@ -190,7 +190,7 @@ export interface JewelDataPort {
 
 export interface WaystoneTierDefinition {
   color: string;
-  roman: string;
+  icon: string;
   searchText: string;
   tier: number;
 }

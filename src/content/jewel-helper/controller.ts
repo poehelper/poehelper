@@ -1,5 +1,8 @@
-import type { JewelDataPort, StylerPort } from "../ports";
-import { createBaseMenu } from "../presets/base-menu";
+import type { JewelDataPort, StylerPort, UniqueDataPort } from "../ports";
+import {
+  createBaseMenu,
+  type UniqueMenuDefinition
+} from "../presets/base-menu";
 import type { PresetState } from "../presets/state";
 import { getSafeItemImageUrl } from "../image-assets";
 
@@ -14,15 +17,19 @@ export function createJewelHelperFeature({
   jewelData,
   onDeactivate = async () => undefined,
   onSelect,
+  onSelectUnique = async () => false,
   presetState,
-  styler
+  styler,
+  uniqueData
 }: {
   document: Document;
   jewelData: JewelDataPort;
   onDeactivate?: () => Promise<void>;
   onSelect(baseKey: string): Promise<boolean>;
+  onSelectUnique?(name: string): Promise<boolean>;
   presetState: PresetState;
   styler: StylerPort;
+  uniqueData?: UniqueDataPort;
 }): JewelHelperFeature {
   let launcher: HTMLButtonElement | null = null;
   let menu: HTMLDivElement | null = null;
@@ -53,9 +60,29 @@ export function createJewelHelperFeature({
   }
 
   function createMenu(): HTMLDivElement {
-    return createBaseMenu("jewels", jewelData.JEWEL_BASES, async (baseKey) => {
-      if (await onSelect(baseKey)) close();
-    });
+    const uniqueDefinitions: UniqueMenuDefinition[] = (
+      uniqueData?.getItemsByType("Jewels") || []
+    ).map((item) => ({
+      base: item.base,
+      displayName: item.name,
+      icon: item.officialIcon,
+      key: item.key,
+      requiredLevel: item.level,
+      searchText: `${item.name} ${item.base}`
+    }));
+    return createBaseMenu(
+      "jewels",
+      jewelData.JEWEL_BASES,
+      async (baseKey) => {
+        if (await onSelect(baseKey)) close();
+      },
+      {
+        selectUnique: async (name) => {
+          if (await onSelectUnique(name)) close();
+        },
+        uniqueDefinitions
+      }
+    );
   }
 
   function createLauncher(): HTMLButtonElement {

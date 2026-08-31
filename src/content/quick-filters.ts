@@ -3,7 +3,6 @@ import {
   QUICK_NUMBER_FILTERS,
   QUICK_RARITY_FILTER
 } from "./quick-filter-definitions";
-import { createQuickEmptyModifierFeature, type QuickEmptyModifierActions } from "./quick-empty-modifier-filter";
 import { createQuickRarityFilterFeature } from "./quick-rarity-filter";
 import { getFilterBodyByLabel, getRenderedSelectValue } from "./trade-dom";
 import type {
@@ -25,16 +24,17 @@ import {
   readQuickNumberValue,
   setQuickNumberControlVisibility
 } from "./quick-number-filter";
+import { createHoverNumberInputController } from "./hover-number-input";
 
 export interface QuickFiltersFeature {
   closeBoundPopovers(exceptControl?: Element | null): boolean;
   decorate(): void;
+  handleKeyDown(event: KeyboardEvent): boolean;
   isGroupToggleInProgress(): boolean;
   requestSync(): void;
 }
 export interface QuickFiltersDependencies {
   gemData: GemDataPort;
-  statGroups?: QuickEmptyModifierActions;
   styler: StylerPort;
   normalizeText(value: unknown): string;
   waitForElement<T extends Element>(findElement: () => T | null, attempts?: number): Promise<T | null>;
@@ -42,7 +42,6 @@ export interface QuickFiltersDependencies {
 
 export function createQuickFiltersFeature({
   gemData,
-  statGroups,
   styler,
   normalizeText,
   waitForElement
@@ -51,6 +50,7 @@ export function createQuickFiltersFeature({
   const QUICK_BOUND_FILTERS = styler.QUICK_BOUND_FILTERS;
   let quickFilterSyncScheduled = false;
   let quickFilterGroupToggleInProgress = false;
+  const hoverNumberInput = createHoverNumberInputController();
   const pendingQuickFilterGroupEnables = new Map<string, Promise<void>>();
   function getQuickFilterBody(label: string): Element | null {
     return getFilterBodyByLabel(label, normalizeStatFilterText);
@@ -491,6 +491,7 @@ export function createQuickFiltersFeature({
       input.max = String(definition.max);
       input.placeholder = `${definition.min}–${definition.max}`;
       input.setAttribute("aria-label", definition.shortLabel);
+      hoverNumberInput.enable(input);
       input.addEventListener("input", () => {
         if (isValidInputValue(input.value)) {
           void commitValue(input.value, false, input);
@@ -639,8 +640,7 @@ export function createQuickFiltersFeature({
       .querySelectorAll(
         ".poe-trade-styler-quick-number-filter.is-open, " +
           ".poe-trade-styler-quick-bound-filter.is-open, " +
-          ".poe-trade-styler-quick-rarity-filter.is-open, " +
-          ".poe-trade-styler-quick-empty-filter.is-open"
+          ".poe-trade-styler-quick-rarity-filter.is-open"
       )
       .forEach((control) => {
         if (control === exceptControl) {
@@ -651,14 +651,12 @@ export function createQuickFiltersFeature({
         const popover = control.querySelector<HTMLElement>(
             ".poe-trade-styler-quick-number-popover, " +
               ".poe-trade-styler-quick-bound-popover, " +
-              ".poe-trade-styler-quick-rarity-popover, " +
-              ".poe-trade-styler-quick-empty-popover"
+              ".poe-trade-styler-quick-rarity-popover"
         );
         const trigger = control.querySelector<HTMLElement>(
             ".poe-trade-styler-quick-number-trigger, " +
               ".poe-trade-styler-quick-bound-trigger, " +
-              ".poe-trade-styler-quick-rarity-trigger, " +
-              ".poe-trade-styler-quick-empty-trigger"
+              ".poe-trade-styler-quick-rarity-trigger"
         );
         if (popover) popover.hidden = true;
         trigger?.setAttribute("aria-expanded", "false");
@@ -717,6 +715,7 @@ export function createQuickFiltersFeature({
       input.max = String(definition.max);
     }
     input.placeholder = definition.bound;
+    hoverNumberInput.enable(input);
     const commitValue = async (
       value: string,
       closePopover = false
@@ -810,13 +809,6 @@ export function createQuickFiltersFeature({
     requestSync: requestQuickFilterSync,
     waitForElement
   });
-  const emptyModifierFilter = createQuickEmptyModifierFeature({
-    actions: statGroups,
-    closePopovers: closeQuickBoundPopovers,
-    normalizeText: normalizeStatFilterText,
-    requestSync: requestQuickFilterSync
-  });
-
   function syncQuickFilters() {
     const strip = document.querySelector(
       "#trade > .top .poe-trade-styler-quick-filters"
@@ -830,13 +822,6 @@ export function createQuickFiltersFeature({
       '[data-quick-filter="rarity"]'
     );
     if (rarityControl) rarityFilter.syncControl(rarityControl);
-    const emptyModifierControl = strip.querySelector<HTMLElement>(
-      '[data-quick-filter="empty-modifiers"]'
-    );
-    if (emptyModifierControl) {
-      emptyModifierFilter.syncControl(emptyModifierControl);
-    }
-
     QUICK_BOOLEAN_FILTERS.forEach((definition) => {
       const control = strip.querySelector<HTMLElement>(
         `[data-quick-filter="${definition.key}"]`
@@ -927,7 +912,6 @@ export function createQuickFiltersFeature({
     QUICK_BOUND_FILTERS.forEach((definition) =>
       strip.append(createQuickBoundControl(definition))
     );
-    strip.append(emptyModifierFilter.createControl());
     QUICK_BOOLEAN_FILTERS.forEach((definition) =>
       strip.append(createQuickBooleanControl(definition))
     );
@@ -943,6 +927,7 @@ export function createQuickFiltersFeature({
   return {
     closeBoundPopovers: closeQuickBoundPopovers,
     decorate: decorateQuickFilters,
+    handleKeyDown: hoverNumberInput.handleKeyDown,
     isGroupToggleInProgress: () => quickFilterGroupToggleInProgress,
     requestSync: requestQuickFilterSync
   };

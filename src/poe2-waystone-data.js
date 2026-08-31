@@ -12,44 +12,39 @@
   // Verified against the official PoE 2 trade stat catalogue and Craft of
   // Exile's Top Tier Waystone affixes on 2026-08-29. Keep legacy searchable
   // modifiers because existing Waystones can remain listed after pool changes.
-  const BUNDLED_DATA = globalThis.Poe2BundledIconData ||
-    (typeof require === "function" ? require("./poe2-bundled-icon-data.js") : {});
-  const WAYSTONE_TIER_15_ICON =
-    BUNDLED_DATA.mappings?.special?.waystoneTier15 ||
-    BUNDLED_DATA.fallbackPath ||
-    "assets/item-icons/fallback.webp";
-  const ROMAN_WAYSTONE_TIERS = [
-    "I",
-    "II",
-    "III",
-    "IV",
-    "V",
-    "VI",
-    "VII",
-    "VIII",
-    "IX",
-    "X",
-    "XI",
-    "XII",
-    "XIII",
-    "XIV",
-    "XV",
-    "XVI"
-  ];
+  const WAYSTONE_TIER_ICONS = Object.freeze({
+    1: "https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9FbmRnYW1lTWFwcy9FbmRnYW1lTWFwMSIsInciOjEsImgiOjEsInNjYWxlIjoxLCJyZWFsbSI6InBvZTIifV0/d36b6409e3/EndgameMap1.png",
+    2: "https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9FbmRnYW1lTWFwcy9FbmRnYW1lTWFwMiIsInciOjEsImgiOjEsInNjYWxlIjoxLCJyZWFsbSI6InBvZTIifV0/4ac71eea17/EndgameMap2.png",
+    3: "https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9FbmRnYW1lTWFwcy9FbmRnYW1lTWFwMyIsInciOjEsImgiOjEsInNjYWxlIjoxLCJyZWFsbSI6InBvZTIifV0/4257e8e4cd/EndgameMap3.png",
+    4: "https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9FbmRnYW1lTWFwcy9FbmRnYW1lTWFwNCIsInciOjEsImgiOjEsInNjYWxlIjoxLCJyZWFsbSI6InBvZTIifV0/5462dc78bb/EndgameMap4.png",
+    5: "https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9FbmRnYW1lTWFwcy9FbmRnYW1lTWFwNSIsInciOjEsImgiOjEsInNjYWxlIjoxLCJyZWFsbSI6InBvZTIifV0/f8cd6b1b86/EndgameMap5.png",
+    6: "https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9FbmRnYW1lTWFwcy9FbmRnYW1lTWFwNiIsInciOjEsImgiOjEsInNjYWxlIjoxLCJyZWFsbSI6InBvZTIifV0/6150ee81f7/EndgameMap6.png",
+    7: "https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9FbmRnYW1lTWFwcy9FbmRnYW1lTWFwNyIsInciOjEsImgiOjEsInNjYWxlIjoxLCJyZWFsbSI6InBvZTIifV0/5687c12be9/EndgameMap7.png",
+    8: "https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9FbmRnYW1lTWFwcy9FbmRnYW1lTWFwOCIsInciOjEsImgiOjEsInNjYWxlIjoxLCJyZWFsbSI6InBvZTIifV0/8a3fc85d64/EndgameMap8.png",
+    9: "https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9FbmRnYW1lTWFwcy9FbmRnYW1lTWFwOSIsInciOjEsImgiOjEsInNjYWxlIjoxLCJyZWFsbSI6InBvZTIifV0/24a49a7f09/EndgameMap9.png",
+    10: "https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9FbmRnYW1lTWFwcy9FbmRnYW1lTWFwMTAiLCJ3IjoxLCJoIjoxLCJzY2FsZSI6MSwicmVhbG0iOiJwb2UyIn1d/ce426a3feb/EndgameMap10.png",
+    11: "https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9FbmRnYW1lTWFwcy9FbmRnYW1lTWFwMTEiLCJ3IjoxLCJoIjoxLCJzY2FsZSI6MSwicmVhbG0iOiJwb2UyIn1d/3cbc9f6a21/EndgameMap11.png",
+    12: "https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9FbmRnYW1lTWFwcy9FbmRnYW1lTWFwMTIiLCJ3IjoxLCJoIjoxLCJzY2FsZSI6MSwicmVhbG0iOiJwb2UyIn1d/2729435b50/EndgameMap12.png",
+    13: "https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9FbmRnYW1lTWFwcy9FbmRnYW1lTWFwMTMiLCJ3IjoxLCJoIjoxLCJzY2FsZSI6MSwicmVhbG0iOiJwb2UyIn1d/543471526d/EndgameMap13.png",
+    14: "https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9FbmRnYW1lTWFwcy9FbmRnYW1lTWFwMTQiLCJ3IjoxLCJoIjoxLCJzY2FsZSI6MSwicmVhbG0iOiJwb2UyIiwibWQiOnRydWV9XQ/00bfecd213/EndgameMap14.png",
+    15: "https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9FbmRnYW1lTWFwcy9FbmRnYW1lTWFwMTUiLCJ3IjoxLCJoIjoxLCJzY2FsZSI6MSwicmVhbG0iOiJwb2UyIn1d/17149586aa/EndgameMap15.png",
+    16: "https://web.poecdn.com/gen/image/WzI4LDE0LHsiZiI6IjJESXRlbXMvTWFwcy9FbmRnYW1lTWFwcy9FbmRnYW1lTWFwMTYiLCJ3IjoxLCJoIjoxLCJzY2FsZSI6MSwicmVhbG0iOiJwb2UyIn1d/c0f4423d40/EndgameMap16.png"
+  });
   const WAYSTONE_TIERS = Object.freeze(
-    ROMAN_WAYSTONE_TIERS.map((roman, index) => {
+    Array.from({ length: 16 }, (_, index) => {
       const tier = index + 1;
       const color =
         tier <= 5 ? "white" : tier <= 10 ? "yellow" : tier <= 15 ? "red" : "dark-red";
 
       return Object.freeze({
         tier,
-        roman,
+        icon: WAYSTONE_TIER_ICONS[tier],
         color,
         searchText: `Waystone (Tier ${tier})`
       });
     })
   );
+  const WAYSTONE_TIER_15_ICON = WAYSTONE_TIERS[14].icon;
   // The reviewed top-tier Waystone pool lists the first 24 entries below
   // as prefixes. The remaining difficulty modifiers are suffixes. Keep the
   // split explicit so every compact preset row can display its affix class.

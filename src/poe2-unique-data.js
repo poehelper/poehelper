@@ -14424,6 +14424,64 @@
     "verification": "page"
   },
   {
+    "base": "Emerald",
+    "baseImplicitMods": [],
+    "baseProperties": [
+      "Jewel"
+    ],
+    "basePropertyStyles": [
+      null
+    ],
+    "flavourText": [
+      "An indomitable force of control."
+    ],
+    "key": "grand spectrum emerald",
+    "level": 20,
+    "mods": [
+      "2% increased Spirit per socketed Grand Spectrum",
+      "number of stackable unique jewels [1]"
+    ],
+    "name": "Grand Spectrum",
+    "officialIcon": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvSmV3ZWxzL1VuaXF1ZXMvR3JhbmRTcGVjdHJ1bV9FbWVyYWxkIiwidyI6MSwiaCI6MSwic2NhbGUiOjEsInJlYWxtIjoicG9lMiJ9XQ/687a109210/GrandSpectrum_Emerald.png",
+    "pool": "Emerald",
+    "requirements": "Requires: Level 20",
+    "runeforging": [],
+    "section": "Other",
+    "slug": "Grand_Spectrum",
+    "sourceUrl": "https://poe2db.tw/us/Grand_Spectrum",
+    "type": "Jewels",
+    "verification": "page"
+  },
+  {
+    "base": "Sapphire",
+    "baseImplicitMods": [],
+    "baseProperties": [
+      "Jewel"
+    ],
+    "basePropertyStyles": [
+      null
+    ],
+    "flavourText": [
+      "Skin like steel tempered by bright flames."
+    ],
+    "key": "grand spectrum sapphire",
+    "level": 20,
+    "mods": [
+      "+6% to all Elemental Resistances per socketed Grand Spectrum",
+      "number of stackable unique jewels [1]"
+    ],
+    "name": "Grand Spectrum",
+    "officialIcon": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvSmV3ZWxzL1VuaXF1ZXMvR3JhbmRTcGVjdHJ1bV9TYXBwaGlyZSIsInciOjEsImgiOjEsInNjYWxlIjoxLCJyZWFsbSI6InBvZTIifV0/514d06d40e/GrandSpectrum_Sapphire.png",
+    "pool": "Sapphire",
+    "requirements": "Requires: Level 20",
+    "runeforging": [],
+    "section": "Other",
+    "slug": "Grand_Spectrum",
+    "sourceUrl": "https://poe2db.tw/us/Grand_Spectrum",
+    "type": "Jewels",
+    "verification": "page"
+  },
+  {
     "base": "Diamond",
     "baseImplicitMods": [],
     "baseProperties": [
@@ -22532,7 +22590,10 @@
   }
 ];
   const UNIQUE_ITEMS = Object.freeze(UNIQUE_ITEM_SNAPSHOT.map((item) =>
-    Object.freeze({ ...item, officialIcon: BUNDLED_ICONS[item.key] || BUNDLED_FALLBACK })
+    Object.freeze({
+      ...item,
+      officialIcon: BUNDLED_ICONS[item.key] || item.officialIcon || BUNDLED_FALLBACK
+    })
   ));
 
   function getItemsByType(type) {

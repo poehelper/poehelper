@@ -1757,7 +1757,7 @@ html.poe-trade-styler-gem-modal-open {
   left: 0;
   z-index: 2147483645;
   display: grid;
-  grid-template-columns: repeat(4, 38px);
+  grid-template-columns: repeat(5, 47px);
   gap: 4px;
   width: max-content;
   padding: 6px;
@@ -1772,17 +1772,44 @@ html.poe-trade-styler-gem-modal-open {
 }
 
 .poe-trade-styler-waystone-tier-option {
+  position: relative;
+  box-sizing: border-box;
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 30px;
+  width: 47px;
+  height: 47px;
   margin: 0;
   padding: 0 !important;
   border: 1px solid currentColor;
   border-radius: 3px;
   background: #171717;
-  font: 700 13px/1 "PoeFontin";
   cursor: pointer;
+}
+
+.poe-trade-styler-waystone-tier-option::after {
+  content: attr(data-poe-trade-styler-waystone-tier);
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  z-index: 1;
+  color: currentColor;
+  font: 700 12px/1 "PoeFontin";
+  text-shadow:
+    -1px -1px 1px #000,
+    1px -1px 1px #000,
+    -1px 1px 1px #000,
+    1px 1px 1px #000;
+  pointer-events: none;
+}
+
+.poe-trade-styler-waystone-tier-option
+  > img.poe-trade-styler-waystone-tier-icon {
+  display: block;
+  width: 47px !important;
+  height: 47px !important;
+  max-width: none !important;
+  object-fit: contain;
+  pointer-events: none;
 }
 
 .poe-trade-styler-waystone-tier-option:hover,
@@ -1841,7 +1868,21 @@ html.poe-trade-styler-gem-modal-open {
 }
 
 .poe-trade-styler-jewel-base-menu {
+  grid-template-columns: repeat(2, 255px);
+  gap: 2px 4px;
   max-height: min(390px, 70vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.poe-trade-styler-base-column-heading.is-full-width {
+  grid-column: 1 / -1;
+}
+
+.poe-trade-styler-tablet-base-menu {
+  grid-template-columns: repeat(2, 275px);
+  gap: 2px 4px;
+  max-height: min(430px, 70vh);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -1869,18 +1910,30 @@ html.poe-trade-styler-gem-modal-open {
 }
 
 .poe-trade-styler-charm-base-menu {
-  grid-template-columns: 420px;
-  gap: 1px;
+  grid-template-columns: repeat(2, 330px);
+  gap: 2px 4px;
   max-height: min(622px, 60vh);
-  padding: 3px;
+  padding: 4px;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+.poe-trade-styler-tablet-base-option {
+  width: 275px;
+}
+
+.poe-trade-styler-jewel-base-option {
+  width: 255px;
+}
+
+.poe-trade-styler-jewel-base-option.is-unique {
+  grid-template-columns: 30px minmax(0, 1fr) auto;
 }
 
 .poe-trade-styler-charm-base-option {
   grid-template-columns: 42px minmax(0, 1fr);
   gap: 5px;
-  width: 420px;
+  width: 330px;
   min-height: 44px;
   height: auto;
   padding: 1px 5px 1px 2px !important;
@@ -1895,12 +1948,17 @@ html.poe-trade-styler-gem-modal-open {
   overscroll-behavior: contain;
 }
 
-.poe-trade-styler-flask-column-heading {
+.poe-trade-styler-base-column-heading {
   padding: 3px 7px 4px;
   color: #a99b7b;
   font: 700 11px/1.2 "PoeFontin";
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.poe-trade-styler-base-option-placeholder {
+  display: block;
+  min-height: 1px;
 }
 
 .poe-trade-styler-flask-base-option {
@@ -1925,7 +1983,34 @@ html.poe-trade-styler-gem-modal-open {
   white-space: nowrap;
 }
 
-.poe-trade-styler-charm-base-option
+.poe-trade-styler-base-option.is-unique {
+  border-color: #6f572a;
+  background: linear-gradient(90deg, #211b12, #171717 72%);
+  color: #af6025;
+}
+
+.poe-trade-styler-base-option.is-unique
+  .poe-trade-styler-base-option-label {
+  display: block;
+}
+
+.poe-trade-styler-unique-option-name {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.poe-trade-styler-charm-base-option.is-unique {
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+}
+
+.poe-trade-styler-tablet-base-option.is-unique {
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+}
+
+.poe-trade-styler-charm-base-option:not(.is-unique)
   .poe-trade-styler-base-option-label::after {
   content: " · " attr(data-poe-trade-styler-base-stat);
   color: #8888e8;
@@ -1965,6 +2050,19 @@ html.poe-trade-styler-gem-modal-open {
   color: #f1cf7a;
   outline: none;
   box-shadow: inset 0 0 0 1px rgba(208, 170, 88, 0.36);
+}
+
+.poe-trade-styler-charm-base-option.is-unique:hover,
+.poe-trade-styler-charm-base-option.is-unique:focus-visible,
+.poe-trade-styler-flask-base-option.is-unique:hover,
+.poe-trade-styler-flask-base-option.is-unique:focus-visible,
+.poe-trade-styler-tablet-base-option.is-unique:hover,
+.poe-trade-styler-tablet-base-option.is-unique:focus-visible,
+.poe-trade-styler-jewel-base-option.is-unique:hover,
+.poe-trade-styler-jewel-base-option.is-unique:focus-visible {
+  border-color: #d68a42;
+  background: #302113;
+  color: #df9857;
 }
 
 #trade .poe-trade-styler-preset-stat-hidden {
@@ -2126,122 +2224,6 @@ html.poe-trade-styler-jewel-preset.poe-trade-styler-hide-irrelevant-affixes
   opacity: 1;
   outline: 1px solid rgba(224, 183, 93, 0.35);
   outline-offset: 1px;
-}
-
-#trade .poe-trade-styler-quick-empty-filter {
-  position: relative;
-  flex: 0 0 54px;
-  width: 54px;
-  height: 38px;
-}
-
-#trade .poe-trade-styler-quick-empty-trigger {
-  width: 54px;
-  min-width: 54px;
-  color: #dfcf99;
-  font: 700 12px/1 "PoeFontin";
-}
-
-#trade .poe-trade-styler-quick-empty-icon {
-  pointer-events: none;
-}
-
-#trade .poe-trade-styler-quick-empty-filter.is-open
-  .poe-trade-styler-quick-empty-trigger {
-  border-color: #b89955;
-  background: rgba(55, 45, 25, 0.96);
-  opacity: 1;
-  outline: 1px solid rgba(224, 183, 93, 0.35);
-  outline-offset: 1px;
-}
-
-#trade .poe-trade-styler-quick-empty-popover {
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 8px);
-  z-index: 50;
-  display: grid;
-  gap: 4px;
-  width: 360px;
-  padding: 8px;
-  border: 1px solid #8e7845;
-  border-radius: 4px;
-  background: #151515;
-  color: #dfcf99;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.78);
-  transform: translateX(-50%);
-}
-
-#trade .poe-trade-styler-quick-empty-popover::after {
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  border: 6px solid transparent;
-  border-top-color: #8e7845;
-  content: "";
-  transform: translateX(-50%);
-}
-
-#trade .poe-trade-styler-quick-empty-popover::before {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 100%;
-  height: 8px;
-  content: "";
-}
-
-#trade .poe-trade-styler-quick-empty-popover[hidden] {
-  display: none;
-}
-
-#trade .poe-trade-styler-quick-empty-row {
-  display: grid;
-  grid-template-columns: 120px minmax(0, 1fr);
-  align-items: center;
-  gap: 6px;
-}
-
-#trade .poe-trade-styler-quick-empty-label {
-  color: #cfc3a6;
-  font: 600 12px/1.2 "PoeFontin";
-  text-align: left;
-}
-
-#trade .poe-trade-styler-quick-empty-options {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 2px;
-}
-
-#trade .poe-trade-styler-quick-empty-option {
-  display: grid;
-  place-items: center;
-  min-width: 0;
-  height: 28px;
-  margin: 0;
-  padding: 0 !important;
-  border: 1px solid #514a3a;
-  border-radius: 2px;
-  background: #0e0e0e;
-  color: #dfcf99;
-  font: 700 12px/1 "PoeFontin";
-  cursor: pointer;
-}
-
-#trade .poe-trade-styler-quick-empty-option:hover,
-#trade .poe-trade-styler-quick-empty-option:focus-visible {
-  border-color: #e0b75d;
-  background: #24211a;
-  color: #f3d278;
-  outline: none;
-}
-
-#trade .poe-trade-styler-quick-empty-option.is-selected {
-  border-color: #b89955;
-  background: #2b261a;
-  color: #f3d278;
-  box-shadow: inset 0 0 0 1px rgba(224, 183, 93, 0.2);
 }
 
 #trade .poe-trade-styler-quick-rarity-filter {

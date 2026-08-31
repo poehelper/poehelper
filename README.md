@@ -23,7 +23,6 @@ Open **Trade Helper** on a supported trade page to change these settings. Prefer
 - One-click toggles for corrupted, fractured, desecrated, crafted, mirrored, and sanctified items.
 - Quick minimum values for item quality and augmentable sockets.
 - Gem-level and gem-socket controls when a gem is selected.
-- Empty-prefix, empty-suffix, and total-empty-modifier filters.
 - A clear-search action for quickly resetting the native form.
 
 ### Item presets and helpers

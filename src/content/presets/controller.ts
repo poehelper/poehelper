@@ -6,6 +6,7 @@ import type {
   JewelDataPort,
   StylerPort,
   TabletDataPort,
+  UniqueDataPort,
   WaystoneDataPort
 } from "../ports";
 import type { StatFiltersFeature } from "../stat-filters/contracts";
@@ -18,7 +19,11 @@ import { type PresetMode, type PresetState } from "./state";
 import { createGearSelection } from "./gear-selection";
 import { createGemSelection } from "./gem-selection";
 import { createJewelSelection } from "./jewel-selection";
-import { createBaseMenu, type BasePresetMode } from "./base-menu";
+import {
+  createBaseMenu,
+  type BasePresetMode,
+  type UniqueMenuDefinition
+} from "./base-menu";
 import { getSafeItemImageUrl } from "../image-assets";
 import { createPresetGroupStateManager } from "./group-state-manager";
 
@@ -34,6 +39,8 @@ export interface PresetsFeature {
   ): Promise<boolean>;
   selectGem(key: string): Promise<boolean>;
   selectJewel(baseKey: string): Promise<boolean>;
+  selectUniqueItem(name: string): Promise<boolean>;
+  searchUniqueItem(name: string): Promise<boolean>;
   prepareUniqueGroups(): Promise<boolean>;
   finalizeSearch(
     beforeSubmit?: () => Promise<boolean | void>
@@ -51,6 +58,7 @@ export function createPresetsFeature({
   stats,
   styler,
   tabletData,
+  uniqueData,
   waystoneData,
   nativeForm: injectedNativeForm
 }: {
@@ -63,6 +71,7 @@ export function createPresetsFeature({
   stats: StatFiltersFeature;
   styler: StylerPort;
   tabletData: TabletDataPort;
+  uniqueData?: UniqueDataPort;
   waystoneData: WaystoneDataPort;
   nativeForm?: NativeTradeFormPort;
 }): PresetsFeature {
@@ -76,6 +85,7 @@ export function createPresetsFeature({
   let charmBaseSelectionInProgress = false;
   let flaskBaseSelectionInProgress = false;
   let tabletBaseSelectionInProgress = false;
+  let uniqueItemSelectionInProgress = false;
   let uniqueGroupPolicyActive = false;
   let preparedGroupMode: GroupPolicyMode | null = null;
 
@@ -216,7 +226,8 @@ export function createPresetsFeature({
   function syncBaseMenu(preset: BasePresetMode, selectedKey: string | null): void {
     document
       .querySelectorAll<HTMLElement>(
-        `.poe-trade-styler-base-option[data-poe-trade-styler-base-preset="${preset}"]`
+        `.poe-trade-styler-base-option[data-poe-trade-styler-base-preset="${preset}"]` +
+          `[data-poe-trade-styler-base-key]`
       )
       .forEach((option) => {
         const selected = option.dataset.poeTradeStylerBaseKey === selectedKey;
@@ -375,11 +386,18 @@ export function createPresetsFeature({
         `is-${definition.color}`;
       option.type = "button";
       option.dataset.poeTradeStylerWaystoneTier = String(definition.tier);
-      option.textContent = definition.roman;
       option.title = definition.searchText;
       option.setAttribute("role", "radio");
       option.setAttribute("aria-label", definition.searchText);
       option.setAttribute("aria-checked", "false");
+
+      const icon = document.createElement("img");
+      icon.className = "poe-trade-styler-waystone-tier-icon";
+      icon.src = getSafeItemImageUrl(definition.icon);
+      icon.alt = "";
+      icon.setAttribute("aria-hidden", "true");
+      option.append(icon);
+
       option.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -497,6 +515,19 @@ export function createPresetsFeature({
     }
   }
 
+  async function selectUniqueItem(searchText: string): Promise<boolean> {
+    if (!searchText || uniqueItemSelectionInProgress) return false;
+    uniqueItemSelectionInProgress = true;
+    try {
+      closeWaystoneTierMenus();
+      (["tablets", "charms", "flasks"] as BasePresetMode[]).forEach(closeBaseMenus);
+      if (!(await preparePresetActivation("uniques"))) return false;
+      return searchUniqueItem(searchText);
+    } finally {
+      uniqueItemSelectionInProgress = false;
+    }
+  }
+
   const selectGem = createGemSelection({
     activate: async () => { await setActivePreset("gems"); },
     closeMenus: () => {
@@ -588,11 +619,38 @@ export function createPresetsFeature({
     });
     return button;
   }
-  const createTabletBaseMenu = () => createBaseMenu("tablets", tabletData.TABLET_BASES, selectTabletBase);
+  function getUniqueMenuDefinitions(
+    type: "Charms" | "Life Flasks" | "Mana Flasks" | "Tablets"
+  ): UniqueMenuDefinition[] {
+    return (uniqueData?.getItemsByType(type) || []).map((item) => ({
+      base: item.base,
+      displayName: item.name,
+      icon: item.officialIcon,
+      key: item.key,
+      kind: type === "Life Flasks" ? "life" : type === "Mana Flasks" ? "mana" : undefined,
+      requiredLevel: item.level,
+      searchText: `${item.name} ${item.base}`
+    }));
+  }
+
+  const createTabletBaseMenu = () =>
+    createBaseMenu("tablets", tabletData.TABLET_BASES, selectTabletBase, {
+      selectUnique: async (searchText) => { await selectUniqueItem(searchText); },
+      uniqueDefinitions: getUniqueMenuDefinitions("Tablets")
+    });
   const createCharmBaseMenu = () =>
-    createBaseMenu("charms", charmData.CHARM_BASES, selectCharmBase);
+    createBaseMenu("charms", charmData.CHARM_BASES, selectCharmBase, {
+      selectUnique: async (searchText) => { await selectUniqueItem(searchText); },
+      uniqueDefinitions: getUniqueMenuDefinitions("Charms")
+    });
   const createFlaskBaseMenu = () => createBaseMenu(
-    "flasks", flaskData.FLASK_BASES, selectFlaskBase
+    "flasks", flaskData.FLASK_BASES, selectFlaskBase, {
+      selectUnique: async (searchText) => { await selectUniqueItem(searchText); },
+      uniqueDefinitions: [
+        ...getUniqueMenuDefinitions("Life Flasks"),
+        ...getUniqueMenuDefinitions("Mana Flasks")
+      ]
+    }
   );
   const createTabletPresetButton = () =>
     createBasePresetButton("tablets", "Tablet", tabletData.TABLET_GENERAL_ICON);
@@ -797,18 +855,27 @@ export function createPresetsFeature({
     syncPresetControls();
   }
 
+  async function activateUniqueGroups(): Promise<void> {
+    if (
+      preparedGroupMode !== "uniques" &&
+      !(await preparePresetActivation("uniques"))
+    ) return;
+    preparedGroupMode = null;
+    uniqueGroupPolicyActive = true;
+    await applyWaystoneGroupState();
+    stats.filterForPreset();
+    stats.decorateOptions();
+  }
+
+  async function searchUniqueItem(name: string): Promise<boolean> {
+    await activateUniqueGroups();
+    if (!uniqueGroupPolicyActive) return false;
+    if (!(await nativeForm.setSearchItem(name))) return false;
+    return finalizeSearch();
+  }
+
   return {
-    async activateUniqueGroups() {
-      if (
-        preparedGroupMode !== "uniques" &&
-        !(await preparePresetActivation("uniques"))
-      ) return;
-      preparedGroupMode = null;
-      uniqueGroupPolicyActive = true;
-      await applyWaystoneGroupState();
-      stats.filterForPreset();
-      stats.decorateOptions();
-    },
+    activateUniqueGroups,
     closeMenus() {
       const closedWaystones = closeWaystoneTierMenus();
       const closedTablets = closeBaseMenus("tablets");
@@ -827,8 +894,10 @@ export function createPresetsFeature({
     finalizeSearch,
     isUniqueActive: () => uniqueGroupPolicyActive,
     prepareUniqueGroups: () => preparePresetActivation("uniques"),
+    searchUniqueItem,
     selectGear,
     selectGem,
-    selectJewel
+    selectJewel,
+    selectUniqueItem
   };
 }

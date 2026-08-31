@@ -21,14 +21,6 @@ export interface QuickRarityFilterDefinition {
   values: readonly string[];
 }
 
-export interface QuickEmptyModifierFilterDefinition {
-  key: string;
-  label: string;
-  shortLabel: string;
-  statId: string;
-  values: readonly string[];
-}
-
 type BundledIconData = {
   fallbackPath?: string;
   mappings?: { quickFilters?: Record<string, string> };
@@ -54,31 +46,6 @@ export const QUICK_RARITY_FILTER: QuickRarityFilterDefinition = {
     "Any Non-Unique"
   ]
 };
-
-export const QUICK_EMPTY_MODIFIER_FILTERS:
-  readonly QuickEmptyModifierFilterDefinition[] = [
-    {
-      key: "empty-prefixes",
-      label: "# Empty Prefix Modifiers",
-      shortLabel: "Prefixes",
-      statId: "pseudo.pseudo_number_of_empty_prefix_mods",
-      values: ["1", "2", "3", "4", "5", "6"]
-    },
-    {
-      key: "empty-suffixes",
-      label: "# Empty Suffix Modifiers",
-      shortLabel: "Suffixes",
-      statId: "pseudo.pseudo_number_of_empty_suffix_mods",
-      values: ["1", "2", "3", "4", "5", "6"]
-    },
-    {
-      key: "empty-modifiers",
-      label: "# Empty Modifiers",
-      shortLabel: "Empty modifiers",
-      statId: "pseudo.pseudo_number_of_empty_affix_mods",
-      values: ["1", "2", "3", "4", "5", "6"]
-    }
-  ];
 
 export const QUICK_BOOLEAN_FILTERS: readonly QuickBooleanFilterDefinition[] = [
   {

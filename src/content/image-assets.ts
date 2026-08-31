@@ -17,7 +17,13 @@ export const GENERIC_ITEM_FALLBACK_ICON = extensionAssetUrl(FALLBACK_PATH);
 
 export function getSafeItemImageUrl(source: unknown): string {
   const value = String(source || "").trim();
-  return /^assets\/item-icons\/[a-f0-9-]+\.webp$/i.test(value)
-    ? extensionAssetUrl(value)
-    : GENERIC_ITEM_FALLBACK_ICON;
+  if (/^assets\/item-icons\/[a-f0-9-]+\.webp$/i.test(value)) {
+    return extensionAssetUrl(value);
+  }
+  if (
+    /^https:\/\/web\.poecdn\.com\/gen\/image\/[A-Za-z0-9_-]+\/[a-f0-9]+\/[A-Za-z0-9._-]+$/i.test(value)
+  ) {
+    return value;
+  }
+  return GENERIC_ITEM_FALLBACK_ICON;
 }

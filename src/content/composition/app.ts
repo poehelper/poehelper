@@ -62,7 +62,6 @@ export function createContentApp(
   const quickFilters = createQuickFiltersFeature({
     gemData,
     normalizeText: stats.normalizeText,
-    statGroups: stats,
     styler,
     waitForElement: stats.waitForElement
   });
@@ -82,6 +81,7 @@ export function createContentApp(
     stats,
     styler,
     tabletData,
+    uniqueData,
     waystoneData
   });
   isUniquePresetActive = presets.isUniqueActive;
@@ -100,8 +100,10 @@ export function createContentApp(
     jewelData,
     onDeactivate: presets.deactivate,
     onSelect: presets.selectJewel,
+    onSelectUnique: presets.selectUniqueItem,
     presetState,
-    styler
+    styler,
+    uniqueData
   });
   const gearHelper = createGearHelperFeature({
     document: doc,
@@ -119,11 +121,7 @@ export function createContentApp(
     onBeforeOpen: async () => {
       return presets.prepareUniqueGroups();
     },
-    onSearchItem: async (name) => {
-      await presets.activateUniqueGroups();
-      if (!(await nativeForm.setSearchItem(name))) return false;
-      return presets.finalizeSearch();
-    },
+    onSearchItem: presets.searchUniqueItem,
     persistSettings: settingsFeature.persist,
     settings,
     styler,
@@ -185,6 +183,7 @@ export function createContentApp(
   };
 
   const onDocumentKeyDown = (event: KeyboardEvent): void => {
+    if (quickFilters.handleKeyDown(event)) return;
     if (event.key === "Escape" && uniqueHelper.close()) return;
     if (event.key === "Escape" && gearHelper.close()) return;
     if (event.key === "Escape" && gemHelper.close()) return;
@@ -232,8 +231,7 @@ export function createContentApp(
       !quickFilters.isGroupToggleInProgress() &&
       !target?.closest(".poe-trade-styler-quick-rarity-filter") &&
       !target?.closest(".poe-trade-styler-quick-number-filter") &&
-      !target?.closest(".poe-trade-styler-quick-bound-filter") &&
-      !target?.closest(".poe-trade-styler-quick-empty-filter")
+      !target?.closest(".poe-trade-styler-quick-bound-filter")
     ) {
       quickFilters.closeBoundPopovers();
     }
