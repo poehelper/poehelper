@@ -33,7 +33,39 @@
       main {
         width: min(760px, calc(100% - 32px));
         margin: 0 auto;
-        padding: 72px 0 88px;
+        padding: 32px 0 88px;
+      }
+
+      nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding-bottom: 40px;
+      }
+
+      .brand {
+        color: #f5f8fb;
+        font-size: 0.92rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-decoration: none;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 18px;
+      }
+
+      .nav-links a {
+        color: #aeb9c4;
+        font-size: 0.9rem;
+        text-decoration: none;
+      }
+
+      .nav-links a[aria-current="page"],
+      .nav-links a:hover {
+        color: #78d7eb;
       }
 
       header {
@@ -125,6 +157,14 @@
   </head>
   <body>
     <main>
+      <nav aria-label="Main navigation">
+        <a class="brand" href="about.html">POE Trade Helper</a>
+        <div class="nav-links">
+          <a href="about.html">About</a>
+          <a href="privacy-policy.html" aria-current="page">Privacy</a>
+        </div>
+      </nav>
+
       <header>
         <p class="eyebrow">POE Trade Helper</p>
         <h1>Privacy Policy</h1>
